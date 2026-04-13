@@ -83,6 +83,22 @@ Explain what you did, what you left untouched, and what risks remain. Describe h
 
 These are the primary tasks, but a strong candidate will identify and address related issues they discover during exploration.
 
+## Solution
+
+### 1) What was the bug
+
+Editing content on one landing page could change or “corrupt” sections on **another** page. It showed up most often for pages created from a **template** (or cloned from another page). The failure looked random because it depended on whether two pages still pointed at the same underlying section data.
+
+### 2) How we identify the bug
+
+We traced page creation and section updates in the API (`apps/api`). New pages created with `templateId` are built in `PagesService._cloneFromTemplate`. That code spread the template page into a new object but reused **`sections: template.sections`** — the same array and the same `Section` instances as the template. Section updates use `updateSection`, which mutates `section.content` in place (`Object.assign`). So any edit on one page affected every page that shared those section objects. Template-based flows were the smoking gun because they always went through `_cloneFromTemplate`.
+
+### 3) How we solve the bug
+
+We stop sharing section data across pages. `_cloneFromTemplate` now assigns **`sections` from a deep copy** of the template’s sections: each section gets a **new id**, and **`content` is cloned** (e.g. with `structuredClone`) so mutations are isolated per page. Implementation lives in `PagesService._cloneSectionsFromTemplate` in `apps/api/src/pages/pages.service.ts`.
+
+**UTM capture (related feature):** The public contact form appends current `utm_*` query parameters to `POST /leads`, and the API merges them into `lead.metadata` only — not into user-visible `notes`. See `apps/site/src/lib/api.ts`, `apps/site/src/components/ContactForm.tsx`, and `submitLead` in `pages.service.ts`.
+
 ## Evaluation Criteria
 
 See [docs/EVALUATION-CRITERIA.md](docs/EVALUATION-CRITERIA.md) for the full rubric.
