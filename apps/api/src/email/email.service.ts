@@ -36,8 +36,8 @@ export class EmailService {
       lead_email: lead.email,
       lead_phone: lead.phone || 'Not provided',
       lead_message: lead.message || 'No message',
-      primary_color: brand.primary_color,
-      secondary_color: brand.secondary_color,
+      primary_color: brand.primaryColor,
+      secondary_color: brand.secondaryColor,
       submitted_at: new Date(lead.createdAt).toLocaleString(),
     };
   }

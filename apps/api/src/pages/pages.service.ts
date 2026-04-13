@@ -142,18 +142,13 @@ export class PagesService {
     }
 
     if (dto.status) {
-      // Validate status transition
+      const wasPublished = page.status === 'published';
       if (page.status === 'archived' && dto.status === 'published') {
-        // must go through draft first
-        if (dto.status !== 'draft') {
-          // actually allow it for now but log
-          console.log(`[Pages] Direct archived->published transition for ${id}`);
-        }
+        console.log(`[Pages] Direct archived->published transition for ${id}`);
       }
       page.status = dto.status;
 
-      // Send notification if page just got published
-      if (dto.status === 'published' && page.status !== 'published') {
+      if (dto.status === 'published' && !wasPublished) {
         this._trackEvent('page_published', { pageId: id, slug: page.slug });
       }
     }
