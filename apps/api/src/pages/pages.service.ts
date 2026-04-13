@@ -247,6 +247,17 @@ export class PagesService {
 
   // ---------- Template cloning ----------
 
+  /** Deep-clone sections so template-derived pages do not share section objects or content. */
+  private _cloneSectionsFromTemplate(sections: Section[]): Section[] {
+    return sections.map((s, index) => ({
+      id: uuid(),
+      type: s.type,
+      title: s.title,
+      content: structuredClone(s.content ?? {}),
+      order: index,
+    }));
+  }
+
   private async _cloneFromTemplate(templateId: string, dto: CreatePageDto): Promise<Page> {
     const template = await this.findById(templateId);
 
@@ -262,7 +273,7 @@ export class PagesService {
       slug,
       brandId: dto.brandId,
       status: 'draft',
-      sections: template.sections,
+      sections: this._cloneSectionsFromTemplate(template.sections),
       theme: template.theme ? { ...template.theme } : undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -288,11 +299,20 @@ export class PagesService {
       console.log(`[Leads] Lead submitted for unknown page ${data.pageId}`);
     }
 
-    // Extract UTM parameters from query string
+    // UTM from query string (e.g. POST /leads?utm_source=...) and optional utm_* keys in metadata
     const utmParams: Record<string, string> = {};
     for (const [key, value] of Object.entries(queryParams)) {
+      if (key.startsWith('utm_') && value != null && String(value).length > 0) {
+        utmParams[key] = String(value);
+      }
+    }
+    const meta = data.metadata && typeof data.metadata === 'object' ? { ...data.metadata } : {};
+    for (const key of Object.keys(meta)) {
       if (key.startsWith('utm_')) {
-        utmParams[key] = value;
+        const v = meta[key];
+        if (v != null && String(v).length > 0 && utmParams[key] === undefined) {
+          utmParams[key] = String(v);
+        }
       }
     }
 
@@ -304,21 +324,11 @@ export class PagesService {
       email: data.email,
       phone: data.phone || undefined,
       message: data.message || undefined,
-      metadata: { ...data.metadata, ...utmParams },
+      metadata: { ...meta, ...utmParams },
       createdAt: new Date().toISOString(),
     };
 
-    // Append source tracking to notes for brand visibility
-    if (Object.keys(utmParams).length > 0) {
-      const sourceInfo = Object.entries(utmParams)
-        .map(([k, v]) => `${k}=${v}`)
-        .join(', ');
-      lead.notes = lead.notes
-        ? `${lead.notes} | Source: ${sourceInfo}`
-        : `Source: ${sourceInfo}`;
-    }
-
-    // Include message in notes for quick brand reference
+    // Include message in notes for quick brand reference (UTMs stay in metadata only — not user-facing notes)
     if (data.message) {
       lead.notes = lead.notes
         ? `${data.message} | ${lead.notes}`

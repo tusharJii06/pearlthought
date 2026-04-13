@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { siteApi } from '@/lib/api';
+import { siteApi, getLeadSubmitUtmSearch } from '@/lib/api';
 
 interface ContactFormProps {
   pageId: string;
@@ -32,19 +32,22 @@ export function ContactForm({ pageId, brandId, brandName, accentColor = '#1a1a2e
 
     setSubmitting(true);
     try {
-      await siteApi.submitLead({
-        pageId,
-        brandId,
-        name,
-        email,
-        phone: phone || undefined,
-        message: message || undefined,
-        metadata: {
-          investmentRange: investmentRange || undefined,
-          source: 'contact-form',
-          submittedAt: new Date().toISOString(),
+      await siteApi.submitLead(
+        {
+          pageId,
+          brandId,
+          name,
+          email,
+          phone: phone || undefined,
+          message: message || undefined,
+          metadata: {
+            investmentRange: investmentRange || undefined,
+            source: 'contact-form',
+            submittedAt: new Date().toISOString(),
+          },
         },
-      });
+        getLeadSubmitUtmSearch(),
+      );
       setSubmitted(true);
     } catch (err) {
       setError('Something went wrong. Please try again.');
